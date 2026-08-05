@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import '../providers/download_provider.dart';
 import 'app_theme.dart';
@@ -38,24 +39,40 @@ class _HomeScreenState extends State<HomeScreen> {
   void _startDownload() {
     if (_urlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid YouTube URL')),
+        const SnackBar(
+          content: Text('Please enter a valid YouTube URL'),
+          backgroundColor: AppTheme.errorRed,
+        ),
       );
       return;
     }
     
-    // Use user picked path, or default fallback
-    String dirPath = _savePath ?? (Platform.isWindows ? 'C:\\Users\\Public\\Downloads' : '/storage/emulated/0/Download/FortyFetch');
-    
-    // Ensure directory exists
-    Directory(dirPath).createSync(recursive: true);
-    
-    final outputPath = '$dirPath/%(title).180s [%(id)s].%(ext)s';
-    
-    context.read<DownloadProvider>().startDownload(
-      _urlController.text.trim(),
-      _selectedQuality,
-      outputPath,
-    );
+    try {
+      // Use user picked path, or default fallback
+      String dirPath = _savePath ?? (Platform.isWindows ? 'C:\\Users\\Public\\Downloads' : '/storage/emulated/0/Download/FortyFetch');
+      
+      // Ensure directory exists
+      final dir = Directory(dirPath);
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+      }
+      
+      final outputPath = '$dirPath/%(title).180s [%(id)s].%(ext)s';
+      
+      context.read<DownloadProvider>().startDownload(
+        _urlController.text.trim(),
+        _selectedQuality,
+        outputPath,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to access storage: $e'),
+          backgroundColor: AppTheme.errorRed,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   void _showCoffeeModal() {
@@ -175,7 +192,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.paste, color: AppTheme.accent),
                           onPressed: () async {
-                            // Implement clipboard paste
+                            final data = await Clipboard.getData(Clipboard.kTextPlain);
+                            if (data != null && data.text != null) {
+                              setState(() {
+                                _urlController.text = data.text!;
+                              });
+                            }
                           },
                         ),
                       ),
