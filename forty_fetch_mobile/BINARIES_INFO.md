@@ -1,20 +1,13 @@
-# Required Binaries
+# Required Native Binaries
 
-This project requires external binaries to function properly. Due to GitHub file size limits, these binaries are NOT included in the repository.
+This project relies on FFmpeg native Android binaries which are too large to be committed to version control.
 
-You must manually download and place the following binaries in their respective directories:
+To build the project correctly, you must place the appropriate `libffmpeg.so` file in the correct JNI architecture directories:
 
-## Android Binaries
-Place the compiled `.so` files for FFmpeg, FFprobe, and YT-DLP inside the following directory before compiling the APK:
-`android/app/src/main/jniLibs/arm64-v8a/`
-- `libffmpeg.so`
-- `libffprobe.so`
-- `libytdlp.so`
+`android/app/src/main/jniLibs/<architecture>/libffmpeg.so`
 
-## Windows Binaries (For local testing)
-Place the Windows `.exe` files in the `assets/` directory:
-- `assets/ffmpeg.exe`
-- `assets/ffprobe.exe`
-- `assets/yt-dlp.exe`
+You can use the python script provided in the root directory to automatically fetch the necessary `.so` files:
 
-(Alternatively, on Windows, the app will auto-deploy these to your AppData roaming folder if they are bundled in assets).
+``bash
+python download_android_binaries.py
+``

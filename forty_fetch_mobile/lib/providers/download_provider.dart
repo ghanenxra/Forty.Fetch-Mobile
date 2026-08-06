@@ -68,26 +68,25 @@ class DownloadProvider extends ChangeNotifier {
       _statusMessage = 'Download failed';
       _errorMessage = line.replaceFirst('ERROR:', '').trim();
       _isDownloading = false;
-    } else if (line.startsWith('EXIT_CODE:')) {
-      final code = int.tryParse(line.replaceFirst('EXIT_CODE:', '').trim());
-      if (code == 0) {
-        _statusMessage = 'Completed!';
-        // In a real scenario we'd parse the actual output path from yt-dlp 
-        // to pass to the scanner. For now we notify the scanner generically.
-        _channel.invokeMethod('scanFile', {'path': '/storage/emulated/0/Download/FortyFetch/'});
-      } else {
-        _statusMessage = 'Download failed';
-        _errorMessage = 'Process exited with code $code';
-      }
+    } else if (line.startsWith('FILE_SAVED:')) {
+      final actualPath = line.replaceFirst('FILE_SAVED:', '').trim();
+      _channel.invokeMethod('scanFile', {'path': actualPath});
+      _statusMessage = 'Completed!';
       _isDownloading = false;
     } else if (line.contains('[download] Destination:')) {
       _statusMessage = 'Preparing download...';
     } else if (line.contains('[ffmpeg]') || line.contains('[ExtractAudio]')) {
       _statusMessage = 'Finalizing with FFmpeg...';
+    } else if (line.contains('[download] Fetching video manifest...')) {
+      _statusMessage = 'Fetching video info...';
     } else {
       final progress = YtDlpOutputParser.parseProgress(line);
       if (progress != null) {
-        _statusMessage = 'Fetching data...';
+        if (line.contains('Audio progress:')) {
+          _statusMessage = 'Downloading Audio...';
+        } else if (line.contains('Video progress:')) {
+          _statusMessage = 'Downloading Video...';
+        }
         _percentage = progress.percentage;
         _speed = progress.speed;
         _eta = progress.eta;

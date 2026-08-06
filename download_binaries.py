@@ -21,7 +21,8 @@ def extract_ffmpeg_tarxz(tar_path, dest_dir):
         with tarfile.open(tar_path, "r:xz") as tar:
             for member in tar.getmembers():
                 if member.isfile() and (member.name.endswith("/ffmpeg") or member.name.endswith("/ffprobe")):
-                    member.name = os.path.basename(member.name)
+                    basename = os.path.basename(member.name)
+                    member.name = f"lib{basename}.so"
                     tar.extract(member, dest_dir)
                     print(f"Extracted {member.name} to {dest_dir}")
         return True
@@ -30,14 +31,13 @@ def extract_ffmpeg_tarxz(tar_path, dest_dir):
         return False
 
 def main():
-    # Ensure assets directories exist
-    base_asset_dir = os.path.join("forty_fetch_mobile", "assets", "binaries")
-    arm64_dir = os.path.join(base_asset_dir, "arm64-v8a")
+    # Ensure jniLibs directories exist
+    arm64_dir = os.path.join("forty_fetch_mobile", "android", "app", "src", "main", "jniLibs", "arm64-v8a")
     os.makedirs(arm64_dir, exist_ok=True)
     
     # 1. Download yt-dlp (arm64)
     yt_dlp_url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64"
-    yt_dlp_dest = os.path.join(arm64_dir, "yt-dlp")
+    yt_dlp_dest = os.path.join(arm64_dir, "libytdlp.so")
     download_file(yt_dlp_url, yt_dlp_dest)
     
     # 2. Download and extract FFmpeg/FFprobe (arm64) from official yt-dlp builds

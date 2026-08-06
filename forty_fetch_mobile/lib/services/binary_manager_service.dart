@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 class BinaryManagerService {
-  static const List<String> _binaries = ['yt-dlp', 'ffmpeg', 'ffprobe'];
+  static const List<String> _binaries = ['ytdlp', 'ffmpeg', 'ffprobe'];
   
   static const _channel = MethodChannel('com.fortyfetch.app/media_scanner');
   

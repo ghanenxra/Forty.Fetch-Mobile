@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import '../providers/download_provider.dart';
 import 'app_theme.dart';
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _startDownload() {
+  Future<void> _startDownload() async {
     if (_urlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -48,6 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     try {
+      if (Platform.isAndroid) {
+        // Request permissions needed for scoped storage on Android 10+
+        await Permission.storage.request();
+        await Permission.manageExternalStorage.request();
+      }
+
       // Use user picked path, or default fallback
       String dirPath = _savePath ?? (Platform.isWindows ? 'C:\\Users\\Public\\Downloads' : '/storage/emulated/0/Download/FortyFetch');
       
@@ -57,12 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
         dir.createSync(recursive: true);
       }
       
-      final outputPath = '$dirPath/%(title).180s [%(id)s].%(ext)s';
-      
+      // We no longer pass the yt-dlp format string. 
+      // DownloadEngineService will fetch the video title and construct the filename.
       context.read<DownloadProvider>().startDownload(
         _urlController.text.trim(),
         _selectedQuality,
-        outputPath,
+        dirPath,
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
