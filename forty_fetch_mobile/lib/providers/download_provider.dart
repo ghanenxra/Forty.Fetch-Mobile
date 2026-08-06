@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../services/download_engine_service.dart';
 import '../utils/yt_dlp_output_parser.dart';
+import '../main.dart';
 
 class DownloadProvider extends ChangeNotifier {
   final DownloadEngineService _engineService = DownloadEngineService();
@@ -22,6 +24,12 @@ class DownloadProvider extends ChangeNotifier {
   String get eta => _eta;
   String get errorMessage => _errorMessage;
 
+  Future<void> _stopForegroundService() async {
+    if (await FlutterForegroundTask.isRunningService) {
+      await FlutterForegroundTask.stopService();
+    }
+  }
+
   Future<void> startDownload(String url, String quality, String outputPath) async {
     if (_isDownloading) return;
 
@@ -32,6 +40,16 @@ class DownloadProvider extends ChangeNotifier {
     _eta = '';
     _errorMessage = '';
     notifyListeners();
+    
+    if (await FlutterForegroundTask.isIgnoringBatteryOptimizations == false) {
+      // Optional: request ignore battery optimizations if needed, but not strictly required for just network
+    }
+
+    await FlutterForegroundTask.startService(
+      notificationTitle: 'FortyFetch Downloading',
+      notificationText: 'Starting engine...',
+      callback: startCallback,
+    );
 
     try {
       final stream = await _engineService.startDownload(
@@ -51,6 +69,7 @@ class DownloadProvider extends ChangeNotifier {
             if (_statusMessage != 'Completed!' && !_statusMessage.contains('failed')) {
                _statusMessage = 'Completed!';
             }
+            _stopForegroundService();
             notifyListeners();
           }
         },
@@ -59,6 +78,7 @@ class DownloadProvider extends ChangeNotifier {
       _isDownloading = false;
       _statusMessage = 'Download failed';
       _errorMessage = e.toString();
+      _stopForegroundService();
       notifyListeners();
     }
   }
@@ -68,17 +88,22 @@ class DownloadProvider extends ChangeNotifier {
       _statusMessage = 'Download failed';
       _errorMessage = line.replaceFirst('ERROR:', '').trim();
       _isDownloading = false;
+      _stopForegroundService();
     } else if (line.startsWith('FILE_SAVED:')) {
       final actualPath = line.replaceFirst('FILE_SAVED:', '').trim();
       _channel.invokeMethod('scanFile', {'path': actualPath});
       _statusMessage = 'Completed!';
       _isDownloading = false;
+      _stopForegroundService();
     } else if (line.contains('[download] Destination:')) {
       _statusMessage = 'Preparing download...';
+      FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
     } else if (line.contains('[ffmpeg]') || line.contains('[ExtractAudio]')) {
       _statusMessage = 'Finalizing with FFmpeg...';
+      FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
     } else if (line.contains('[download] Fetching video manifest...')) {
       _statusMessage = 'Fetching video info...';
+      FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
     } else {
       final progress = YtDlpOutputParser.parseProgress(line);
       if (progress != null) {
@@ -90,6 +115,10 @@ class DownloadProvider extends ChangeNotifier {
         _percentage = progress.percentage;
         _speed = progress.speed;
         _eta = progress.eta;
+        FlutterForegroundTask.updateService(
+          notificationTitle: 'FortyFetch: $_statusMessage',
+          notificationText: '${_percentage.toStringAsFixed(1)}% | ETA: $_eta'
+        );
       }
     }
     notifyListeners();
@@ -99,6 +128,7 @@ class DownloadProvider extends ChangeNotifier {
     _engineService.cancelDownload();
     _isDownloading = false;
     _statusMessage = 'Cancelled';
+    _stopForegroundService();
     notifyListeners();
   }
 }
