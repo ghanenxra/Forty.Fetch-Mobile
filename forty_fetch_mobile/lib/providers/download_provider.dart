@@ -104,13 +104,22 @@ class DownloadProvider extends ChangeNotifier {
     } else if (line.contains('[download] Fetching video manifest...')) {
       _statusMessage = 'Fetching video info...';
       FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
+    } else if (line.contains('[download] Downloading audio stream...')) {
+      _statusMessage = 'Downloading Audio...';
+      FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
+    } else if (line.contains('[download] Downloading video stream...')) {
+      _statusMessage = 'Downloading Video...';
+      FlutterForegroundTask.updateService(notificationTitle: 'FortyFetch', notificationText: _statusMessage);
     } else {
       final progress = YtDlpOutputParser.parseProgress(line);
       if (progress != null) {
-        if (line.contains('Audio progress:')) {
-          _statusMessage = 'Downloading Audio...';
-        } else if (line.contains('Video progress:')) {
-          _statusMessage = 'Downloading Video...';
+        // Only update status message if we somehow missed the stream start
+        if (_statusMessage == 'Fetching video info...' || _statusMessage == 'Preparing download...') {
+          if (line.contains('Audio progress:')) {
+            _statusMessage = 'Downloading Audio...';
+          } else if (line.contains('Video progress:')) {
+            _statusMessage = 'Downloading Video...';
+          }
         }
         _percentage = progress.percentage;
         _speed = progress.speed;

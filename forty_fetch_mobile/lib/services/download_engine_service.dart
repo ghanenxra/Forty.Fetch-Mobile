@@ -46,11 +46,15 @@ class DownloadEngineService {
 
       if (_isCancelled) return;
 
-      var audioStreamInfo = manifest.audioOnly.withHighestBitrate();
+      var audioStreamInfo = manifest.audioOnly
+          .where((e) => e.container.name == 'mp4')
+          .withHighestBitrate();
       
-      var videoStreamInfo = manifest.videoOnly.firstWhere(
+      var videoStreamInfo = manifest.videoOnly
+          .where((e) => e.container.name == 'mp4')
+          .firstWhere(
         (e) => e.qualityLabel.startsWith(RegExp(r'(\d+)p').firstMatch(quality)?.group(1) ?? '1080'),
-        orElse: () => manifest.videoOnly.withHighestBitrate(),
+        orElse: () => manifest.videoOnly.where((e) => e.container.name == 'mp4').withHighestBitrate(),
       );
 
       final tempDir = await getTemporaryDirectory();
@@ -133,12 +137,13 @@ class DownloadEngineService {
       }
 
       _activeProcess?.stdout.listen((event) {});
+      
+      String lastFfmpegError = '';
       _activeProcess?.stderr.listen((event) {
         String log = String.fromCharCodes(event).trim();
         if (log.isNotEmpty) {
+           lastFfmpegError = log;
            print('FFMPEG: $log'); // Let's log it to console just in case
-           // If we pipe this to controller, it might mess up our progress parsing, 
-           // but we should capture the last error line if it fails.
         }
       });
 
@@ -148,7 +153,7 @@ class DownloadEngineService {
         controller.add('[download] 100% of video merged successfully');
         controller.add('FILE_SAVED: $actualOutputPath');
       } else {
-        controller.add('ERROR: FFmpeg merge failed with code $exitCode');
+        controller.add('ERROR: FFmpeg merge failed with code $exitCode. Log: $lastFfmpegError');
       }
 
     } catch (e) {
